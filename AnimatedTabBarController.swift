@@ -9,100 +9,83 @@ import UIKit
 
 class AnimatedTabBarController: UITabBarController, UITabBarControllerDelegate {
     
-    var titles = [String]()
-    var newlyTapped = true
+    var previousItem = ""
     
     override func viewDidLoad() {
         super.viewDidLoad()
         guard let items = tabBar.items else { return }
         for i in 0..<items.count {
-            titles.append(items[i].title!)
+            tabBar.items![i].imageInsets.top = 15
+            deselectItem(self.tabBar, i)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            self.cleanTitles(animation: false)
+        DispatchQueue.main.async {
+            self.selectItem(self.tabBar, 0)
+            for i in 1..<self.tabBar.items!.count {
+                self.deselectItem(self.tabBar, i)
+            }
         }
     }
     
     override func tabBar(_ tabBar: UITabBar, didSelect item: UITabBarItem) {
-        let secondItemView = self.tabBar.subviews[self.selectedIndex + 1]
-        for i in 0..<secondItemView.subviews.count {
-            if let label = secondItemView.subviews[i] as? UILabel {
+        for i in 0..<tabBar.items!.count {
+            if tabBar.items![i].title == item.title {
                 DispatchQueue.main.async {
-                    if label.text! == self.titles[self.selectedIndex] {
-                        self.newlyTapped = false
-                        label.transform = .identity
-                        label.layer.position.y = 0
-                    }
-                    label.text = ""
-                    self.newlyTapped = true
-                }
-            }
-        }
-        DispatchQueue.main.async {
-            if self.newlyTapped {
-                if item == (self.tabBar.items as! [UITabBarItem])[0]{
-                    self.tabSelected(index: 0)
-                } else if item == (self.tabBar.items as! [UITabBarItem])[1] {
-                    self.tabSelected(index: 1)
-                } else if item == (self.tabBar.items as! [UITabBarItem])[2] {
-                    self.tabSelected(index: 2)
-                } else if item == (self.tabBar.items as! [UITabBarItem])[3] {
-                    self.tabSelected(index: 3)
-                } else {
-                    return
+                    self.selectItem(tabBar, i)
                 }
             } else {
-                self.cleanTitles(animation: false)
-            }
-        }
-    }
-    
-    
-    func tabSelected(index: Int) {
-        let secondItemView = self.tabBar.subviews[index+1]
-        let secondItemImageView = secondItemView.subviews.first as! UIImageView
-        var myLabel = UILabel()
-        secondItemImageView.contentMode = .center
-        for i in 0..<secondItemView.subviews.count {
-            if let label = secondItemView.subviews[i] as? UILabel {
-                myLabel = UILabel()
-                myLabel = label
-            }
-        }
-        
-        UIView.animate(withDuration: 0.5, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 1, options: .curveEaseInOut, animations: { () -> Void in
-            secondItemImageView.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
-            self.cleanTitles(animation: false)
-            myLabel.text = self.titles[index]
-            myLabel.layer.position.y = 0
-        }, completion: { _ in
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: {
-                UIView.animate(withDuration: 0.5, animations: {
-                    secondItemImageView.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
-                    DispatchQueue.main.async {
-                        self.cleanTitles(animation: true)
-                    }
-                })
-            })
-        })
-    }
-    
-    func cleanTitles(animation: Bool) {
-        for j in 0..<self.tabBar.subviews.count {
-            let secondItemView = self.tabBar.subviews[j]
-            let secondItemImageView = secondItemView.subviews.first as! UIImageView
-            secondItemImageView.contentMode = .center
-            for i in 0..<secondItemView.subviews.count {
-                if let label = secondItemView.subviews[i] as? UILabel {
-                    if animation {
-                        UIView.animate(withDuration: 0.5, animations:  {
-                            label.layer.position.y = 100
-                        })
-                    } else {
-                        label.layer.position.y = 100
-                    }
+                DispatchQueue.main.async {
+                    self.deselectItem(tabBar, i)
                 }
             }
+        }
+    }
+    
+    func selectItem(_ tabBar:UITabBar, _ index: Int) {
+        if let item = tabBar.subviews[index + 1].subviews.filter({$0.isKind(of: UILabel.self)}).first {
+            let imageView = tabBar.subviews[index + 1].subviews.filter({$0.isKind(of: UIImageView.self)}).first! as! UIImageView
+            if let label = item as? UILabel {
+                if self.previousItem != label.text {
+                    makeIconSmallAnimation(label, imageView, tabBar)
+                }
+                self.previousItem = label.text!
+            }
+        }
+    }
+    
+    func deselectItem(_ tabBar:UITabBar, _ index: Int) {
+        if let item = tabBar.subviews[index + 1].subviews.filter({$0.isKind(of: UILabel.self)}).first {
+            let imageView = tabBar.subviews[index + 1].subviews.filter({$0.isKind(of: UIImageView.self)}).first! as! UIImageView
+            if let label = item as? UILabel {
+                makeIconLargeAnimation(label, imageView, tabBar)
+            }
+        }
+    }
+    
+    func makeIconSmallAnimation(_ label: UILabel, _ imageView:UIImageView, _ tabBar:UITabBar) {
+        UIView.animate(withDuration: 1, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0, options: .curveEaseInOut, animations: {
+            label.transform = CGAffineTransform(scaleX: 1, y: 1)
+            imageView.transform = CGAffineTransform(scaleX: 0.8, y: 0.8)
+            imageView.contentMode = .scaleAspectFill
+            let y = (tabBar.frame.height / 2) + 5
+            label.frame = CGRect(origin: CGPoint(x: y, y: y), size: CGSize(width: Int(tabBar.frame.width / CGFloat(tabBar.items!.count)), height: 15))
+            label.textAlignment = .center
+            tabBar.layoutIfNeeded()
+        }) { (_) in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: {
+                self.makeIconLargeAnimation(label, imageView, tabBar)
+            })
+        }
+    }
+    
+    func makeIconLargeAnimation(_ label: UILabel, _ imageView:UIImageView, _ tabBar:UITabBar) {
+        UIView.animate(withDuration: 1, delay: 0, usingSpringWithDamping: 0.5, initialSpringVelocity: 0, options: .curveEaseInOut, animations: {
+            label.transform = CGAffineTransform(scaleX: 0.01, y: 0.01)
+            imageView.transform = .identity
+            imageView.contentMode = .scaleAspectFill
+            imageView.transform = CGAffineTransform(scaleX: 1.1, y: 1.1)
+            tabBar.layoutIfNeeded()
+        }) { (_) in
         }
     }
 }
+
